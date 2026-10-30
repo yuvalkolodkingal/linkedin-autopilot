@@ -25,7 +25,8 @@ flowchart TD
 
 - Claude with scheduled-task tools: `create_trigger`, `list_triggers`, `update_trigger`, `delete_trigger`, `fire_trigger`.
 - [Composio](https://composio.dev) with a connected LinkedIn account. In claude.ai, add a custom connector named `composio` with URL `https://connect.composio.dev/mcp`, then connect LinkedIn inside it.
-- Memory enabled. The config and post log live in `/areas/linkedin-poster.md`.
+- Session history tools (`list_sessions`, `list_events`), used to learn your voice from past conversations.
+- Memory enabled. The config, learned voice rules, and post log live in `/areas/linkedin-poster.md`.
 - Optional: the `write-like-me` and `humanizer` skills. Without them, posts use a plain conversational voice.
 
 ## Install
@@ -34,15 +35,15 @@ flowchart TD
 2. Set up Composio and connect LinkedIn, as described above.
 3. Optional: set up `write-like-me` so posts match your voice. The skill offers this if it finds no profile.
 4. In a Claude conversation, say: **"set up the LinkedIn weekly poster"**.
-5. Answer the questions. Claude asks only for what it lacks:
-   - **topics**: 3 to 10 lines, one topic per line. Required.
-   - **language**: the language you write in, or `alternate` or `random`.
-   - **allowed_days**: Sun–Thu (default), Mon–Fri, or all 7.
-   - **window**: default 08:00–12:00.
-   - **timezone**: taken from your session.
-   - **mode**: `auto` posts on its own. `approve` sends you the draft first.
-   - **visibility**: `PUBLIC` by default.
-6. Check the permission mode of the two scheduled tasks. Unattended posting needs **Automatically approve**. If a task is set to **Ask**, switch it in the task settings.
+5. Answer the four questions Claude always asks:
+   - **timezone**: your IANA timezone, for example `Asia/Jerusalem`.
+   - **language**: English, Hebrew, `alternate`, or `random`.
+   - **mode**: `auto` posts on its own. `approve` sends you each draft first and publishes after you reply "approve".
+   - **subjects**: 3 to 10 topics, one per line.
+   
+   Claude then uses defaults for days (Sun–Thu), window (08:00–12:00), and visibility (`PUBLIC`) unless you ask to change them.
+6. Claude reads your recent conversations to learn how you write, and shows you the rules it found. Confirm them or correct them.
+7. Check the permission mode of the two scheduled tasks. Unattended posting needs **Automatically approve**. If a task is set to **Ask**, switch it in the task settings.
 
 ## Changing or pausing
 

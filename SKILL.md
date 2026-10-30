@@ -15,6 +15,7 @@ Cron cannot randomize, so the planner does that. The model never chooses the num
 ## Prerequisites
 
 - Scheduled-task tools: `create_trigger`, `list_triggers`, `update_trigger`, `delete_trigger`, `fire_trigger`.
+- Session history tools: `list_sessions` and `list_events`, used to learn the user's voice.
 - Composio with an ACTIVE LinkedIn connection.
 - Memory enabled. The config lives at `/areas/linkedin-poster.md`.
 
@@ -29,25 +30,41 @@ Follow these steps in order. Do not create any scheduled task until step 1 passe
 3. If there is no ACTIVE LinkedIn connection, call `COMPOSIO_MANAGE_CONNECTIONS` with `{"name": "linkedin", "action": "add"}`. Show the auth link as a markdown link and wait for the user. Then re-check with `COMPOSIO_MANAGE_CONNECTIONS` using action `list`.
 4. Resolve the author URN once with `LINKEDIN_GET_MY_INFO`. The result is `urn:li:person:<id>`. Bake it into the prompts and the memory file. Do not call this tool again, because it throttles with HTTP 429.
 
-### 2. Style skills
+### 2. Style: skills and learned voice
 
 Check whether the `write-like-me` and `humanizer` skills are available (`ListSkills` or `SearchSkills`).
 
 - If `write-like-me` is present but has no profile yet, offer its setup first, then continue.
 - Record `style` as the subset that exists: `write-like-me, humanizer`, `write-like-me`, `humanizer`, or `plain`.
-- If neither exists, write in a plain conversational voice.
 
-### 3. Intake: ask only for what is missing
+Then learn the user's voice from their past conversations. Do this even when `write-like-me` is present, because its profile can miss how the user talks in chat.
 
-| Field | Required | Default |
-|---|---|---|
-| `topics` | yes | none. 3–10 lines, kept verbatim. One topic per line. |
-| `language` | no | the language the user is writing in now. Or `alternate` or `random`. |
-| `allowed_days` | no | Sun–Thu. Or Mon–Fri, or all 7. |
-| `window` | no | 08:00–12:00 |
-| `tz` | no | the IANA timezone from the session |
-| `mode` | no | `auto`. Or `approve`. |
-| `visibility` | no | `PUBLIC` |
+1. Call `list_sessions` with `mine: true` and take the 20 most recent sessions. Skip any session that set up this skill.
+2. For each session, call `list_events` with `kinds: ["user"]`. Keep only messages the user wrote in their own words, longer than 100 characters. Skip pasted content, logs, and code. Use about 40 messages at most.
+3. From those messages, work out: the language mix, typical sentence length, how they open and close a message, words and phrases they use often, what they avoid (filler, hedging, emoji), and how direct they are.
+4. Write a `## Voice` section in the memory file with 6 to 10 short rules in your own words. Do not store message text. The only exception is a habit phrase of three words or fewer.
+5. Show the user the rules and ask them to confirm or correct them. Apply any corrections.
+
+If `write-like-me` has a profile, it takes priority, and the `## Voice` rules fill the gaps.
+
+If neither `write-like-me` nor past conversations give a usable voice, write in a plain conversational voice and record `style: plain`.
+
+### 3. Intake: ask the user these questions
+
+Always ask these four. Do not assume any of them, even if the session suggests an answer. Ask them in one message:
+
+1. **Timezone:** which IANA timezone (for example `Asia/Jerusalem` or `America/New_York`). Do not guess it from the session.
+2. **Language:** which language to post in: English, Hebrew, `alternate` (switch each post), or `random`.
+3. **Mode:** `auto` (posts publish on their own) or `approve` (you get each draft first and publish only after you reply "approve").
+4. **Subjects:** 3 to 10 topics, one per line, kept verbatim. Required.
+
+Ask these only if the user wants changes from the defaults. Otherwise use the defaults:
+
+| Field | Default |
+|---|---|
+| `allowed_days` | Sun–Thu. Or Mon–Fri, or all 7. |
+| `window` | 08:00–12:00 |
+| `visibility` | `PUBLIC` |
 
 ### 4. Write the memory file
 
@@ -174,7 +191,7 @@ Use the printed topic. Do not repeat last week's topic.
 4. Facts. If the post states any fact, number, client name, or quote, verify it with web search, or write around it. Never invent facts, numbers, clients, or quotes.
 
 5. Write the post.
-   - Voice: if `style` includes `write-like-me`, follow its profile. If `style` includes `humanizer`, run the draft through it last. If `style` is `plain`, write in a plain conversational voice.
+   - Voice: if `style` includes `write-like-me`, follow its profile. Also follow every rule in `## Voice` in memory. If `style` includes `humanizer`, run the draft through it last. If `style` is `plain` and `## Voice` is empty, write in a plain conversational voice.
    - Hook: one concrete line. Do not open with "I've been thinking", and do not ask a question nobody is there to answer.
    - One idea per post. Short paragraphs. No bullet walls. No strings of emoji.
    - Length: 600 to 1,300 characters. Hard maximum 2,900. LinkedIn rejects anything over 3,000. Check the length in bash before continuing.
@@ -216,6 +233,11 @@ sources: [chat]
 - author_urn: <urn:li:person:...>
 - planner_trigger: <trig_...>
 - next_post: <local time, set by the planner>
+
+## Voice
+- <rule 1, in your own words>
+- <rule 2>
+- <rules 3 to 10>
 
 ## Post log
 - <YYYY-MM-DD> — <topic> — <first 60 characters>
